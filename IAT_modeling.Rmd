@@ -1,0 +1,161 @@
+---
+title: "IAT_modeling"
+author: "Anna Stuckert and Sofie Rødkjær"
+date: "28/4/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Getting packages
+```{r loading packages, include = FALSE}
+library(pacman)
+p_load(brms, tidyverse, tidybayes, ggplot2, LaplacesDemon, rethinking, tidyr, reshape2, tibble, plotly, jpeg, tm, ggrepel, utils, boot, Hmisc, scales, gridExtra)
+```
+
+#Setting directory
+```{r}
+setwd("~/CogSci/4. semester/Social and Cultural Dynamics/Exam/Data/Exam experiment SocCult Anna og Sofie DONE/") #TRS
+```
+
+#Loading data
+```{r}
+data_ib <- read_csv("~/CogSci/4. semester/Social and Cultural Dynamics/Exam/Data/Exam experiment SocCult Anna og Sofie DONE/SoCult_Exam_MainAnalysis/data_ib.csv")[,2:12]
+
+```
+
+
+#IMPLICIT BIAS
+
+##Difference between gender and condition, interaction
+```{r model, condition * gender}
+summary(data_ib)
+
+#Tranforming condition to a factor
+data_ib$condition <- as.factor(data_ib$condition)
+
+#set formula
+ib_f <- bf(rt ~ condition*gender + (condition | ID))
+
+#to figure out which prior I need to make 
+get_prior(ib_f, data = data_ib)
+
+#Defining a prior
+prior_ib = c(prior(normal(-0.4, 0.2), class = "Intercept"),
+              prior(normal(0, 0.2), class = "b"),
+              prior(normal(0, 0.2), class = "sigma"),
+              prior(normal(0, 0.1), class = "sd"),
+              prior(lkj(1), class=cor))
+
+#Implicit model
+model_ib_prior <- brm(
+  ib_f,
+  data = data_ib,
+  family = gaussian(),
+  prior = prior_ib,
+  sample_prior = "only",
+  cores = 1,
+  chains = 2)
+
+pp_check(model_ib_prior, nsamples = 100) #Doing a predictive prior check to test priors
+
+#run model
+model_ib <- brm(
+  ib_f,
+  data = data_ib,
+  family = gaussian(),
+  prior = prior_ib2,
+  sample_prior = TRUE,
+  cores = 1,
+  chains = 2
+  )
+
+
+summary(model_ib) 
+#plotting
+marginal_effects(model_ib)
+plot(model_ib)
+effective_sample(model_ib)
+```
+
+
+
+##Hypothesis testing
+###H2.1
+```{r}
+hypothesis(model_ib, "(Intercept + genderMale)/2 > ((Intercept + condition1)+(Intercept + condition1+genderMale+condition1:genderMale)/2)")
+```
+
+#H2.2
+```{r}
+hypothesis(model_ib, "condition1 = condition1 + condition1:genderMale")
+```
+
+##Plotting, implicit bias
+
+
+###H2.1 and H2.2
+```{r prepare predictions}
+nd_ib2 <- expand.grid(tibble(
+         gender=factor(0:1) %>% 
+           rep(., times = 10),
+         ID = NA, 
+         condition=factor(0:1) %>% 
+           rep(., times = 10)))
+nd_ib2$gender <- ifelse(nd_ib2$gender == 0, "Male", "Female")
+pred_ib <-
+  predict(model_ib, newdata = nd_ib2) %>%  # we can use the same nd data from last time
+  as_tibble() %>%
+  bind_cols(nd_ib2)
+pred_ib$Estimate_sec <- exp(pred_ib$Estimate)
+pred_ib$dif <- NA
+pred_ib$dif[pred_ib$gender == "Male"] <- pred_ib$Estimate[pred_ib$condition == 1 & pred_ib$gender == "Male"] - pred_ib$Estimate[pred_ib$condition == 0 & pred_ib$gender == "Male"]
+pred_ib$dif[pred_ib$gender == "Female"] <- pred_ib$Estimate[pred_ib$condition == 1 & pred_ib$gender == "Female"] - pred_ib$Estimate[pred_ib$condition == 0 & pred_ib$gender == "Female"]
+pred_ib_mean <- pred_ib %>% group_by(condition, gender) %>% summarise(mean_prediction = mean(Estimate))
+pred_ib$condition <- ifelse(pred_ib$condition == 0, "Congruent", "Incongruent")
+```
+
+
+```{r H2.2 plot}
+#create the plot
+H2.2.1 <- ggplot(pred_ib2, aes(x = gender, y = dif, fill = gender)) +
+  labs(x = "Gender", y = "Difference in reaction time (log)", title = "Hypothesis 2.2.1") +
+  geom_bar(stat="summary", position = position_dodge2(), alpha = 0.6)  + 
+ #stat_summary(fun.data = "mean_cl_boot", colour = "red") +
+  geom_errorbar(aes(ymin=0, ymax=(mean(dif) + mean(Est.Error))),width=.2,position=position_dodge(.9)) + 
+  #geom_point(aes(x = condition, y = Estimate_prop, fill = gender), data = pred_ib2, size = 2, position = position_dodge2(width= 0.1)) + 
+  scale_fill_manual(values=c("orange", "blue")) +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  theme(text = element_text(size=20))
+H2.2.1
+pred_ib$gender <- as.factor(pred_ib$gender)
+H_ib_interaction <- ggplot(pred_ib, aes(x = condition, y = Estimate_sec, fill = gender)) + 
+    geom_violin(aes(x = condition, y = Estimate_sec), data = pred_ib2, width = 0.7, alpha = 0.6) + 
+  theme(panel.grid.minor = element_blank()) + 
+  labs(x = "Condition", y = "Reaction time (seconds)", title = "Hypothesis 2.1 and 2.2") + 
+  stat_summary(fun.data=mean_sdl, geom="pointrange", color="black", position = position_dodge(width = 0.7), alpha = 0.8) +
+  labs(fill = "Gender") + 
+  scale_fill_manual(values=c("orange", "blue")) +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  scale_y_continuous(labels=scales::number_format(accuracy = 0.01, decimal.mark = '.')) + 
+  theme(text = element_text(size=20))
+  
+ 
+H_ib_interaction
+```
+
+
+```{r}
+(y+runif(100, -1, -0.5))
+#plot with lines 
+H2.2.1_lines <- ggplot(pred_ib2, aes(x = condition, y = Estimate_sec, group = gender, color = gender)) + 
+  scale_color_manual(values=c("orange", "blue"), name = "Gender") + 
+  #stat_summary(fun.data = "mean_cl_boot", color = "black", size = 1.5, geom = "point") +
+  stat_summary(fun.y = mean, geom="line") + 
+  
+  labs(x = "Condition", y = "Reaction time (seconds)", title = "Hypothesis 2.2") + 
+  theme(plot.title = element_text(hjust = 0.5)) 
+H2.2.1_lines
+```

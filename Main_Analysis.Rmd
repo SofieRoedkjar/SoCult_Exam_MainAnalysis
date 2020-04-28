@@ -24,6 +24,7 @@ pacman::p_load(
   boot,
   cowplot
 )
+
 ```
 
 ## Load data
@@ -48,6 +49,44 @@ d$PR[d$PR=="no"] = "0"
 d$PR[d$PR=="yes"] = "1"
 d$PR = as.numeric(d$PR)
 
+
+# Recode BR (BOT Response)
+#d$BR = as.character(d$BR)
+#d$BR[d$BR=="Defect"] = "0"
+#d$BR[d$BR=="Cooperate"] = "1"
+#d$BR = as.factor(d$BR)
+
+#subset for each bot
+dA <- d %>% subset(BOT == "A") %>% group_by(ID)
+dB <- d %>% subset(BOT == "B") %>% group_by(ID)
+dC <- d %>% subset(BOT == "C") %>% group_by(ID)
+dD <- d %>% subset(BOT == "D") %>% group_by(ID)
+dE <- d %>% subset(BOT == "E") %>% group_by(ID)
+dF <- d %>% subset(BOT == "F") %>% group_by(ID)
+dG <- d %>% subset(BOT == "G") %>% group_by(ID)
+dH <- d %>% subset(BOT == "H") %>% group_by(ID)
+
+#Add column with the bot's last answer
+# data frame for bot A
+dA <- mutate(dA, BRprevious = lag(BR))
+dB <- mutate(dB, BRprevious = lag(BR))
+dC <- mutate(dC, BRprevious = lag(BR))
+dD <- mutate(dD, BRprevious = lag(BR))
+dE <- mutate(dE, BRprevious = lag(BR))
+dF <- mutate(dF, BRprevious = lag(BR))
+dG <- mutate(dG, BRprevious = lag(BR))
+dH <- mutate(dH, BRprevious = lag(BR))
+
+#merge back together
+d <- rbind(dA, dB, dC, dD, dE, dF, dG, dH)
+
+#remove NAs
+d <- na.omit(d) 
+```
+
+##### Initial checks/plots
+
+```{r}
 # Check Bot behaviour - for at se om deres behavior nogenlunde passer med det programmerede behavior
 d_yes = d[d$PR == 1,]
 d_yes$BR = as.character(d_yes$BR)
@@ -91,7 +130,7 @@ sum(BOTD$BR)/length(BOTD$BR)
 # Duplicate Bot column 
 d$Partner = d$BOT
 
-# How many chimpanzees?
+# How many participants?
 unique(d$ID)
 length(unique(d$ID))
 
@@ -102,6 +141,8 @@ ggplot(d, aes(Partner, PR, fill = Partner)) + geom_bar(stat= "summary") + geom_e
 ggplot(d, aes(x = Trial, y= PR, colour = Partner)) + geom_smooth(alpha = 0.2) + ggtitle("Player cooperation level as a function of time") + xlab("Time aka Trial") + ylab("Player cooperation")
 
 ```
+
+
 
 ## Define models
 ```{r}
@@ -126,6 +167,9 @@ virk_f4 <- bf(PR ~ 0 + Social_Rep:BotGender:Gender + (0 + Social_Rep:BotGender:G
 
 ### Effects of Trial
 virk_f5 <- bf(PR ~ 0 + Social_Rep:BotGender:Prog_Beh + Social_Rep:BotGender:Prog_Beh:mo(Trial) + (0 + Social_Rep:BotGender:Prog_Beh + Social_Rep:BotGender:Prog_Beh:mo(Trial) | ID))
+# virk_f5 <- bf(PR ~ 0 + Social_Rep:BotGender:Prog_Beh + (0 + Social_Rep:BotGender:Prog_Beh | ID))
+virk_f5.1 <- bf(PR ~ 0 + Social_Rep:BotGender:BRprevious + (0 + Social_Rep:BotGender:BRprevious | ID))
+
 
 ### Effects of Trial of different genders
 virk_f6 <- bf(PR ~ 0 + Social_Rep:BotGender:Prog_Beh:mo(Trial) + Social_Rep:BotGender:Prog_Beh:mo(Trial):Gender + (0 + Social_Rep:BotGender:Prog_Beh + Social_Rep:BotGender:Prog_Beh:mo(Trial):Gender | ID))
@@ -495,16 +539,84 @@ dens(inv_logit(y_pred))
 plot(hypothesis(m5,"Social_RepHigh:BotGenderF:GenderKvinde > 0"))
 ```
 
+##### Model 5.1
+```{r}
+get_prior(virk_f5.1, d, family = bernoulli())
+
+prior_f5.1 <- c(
+  prior(normal(0,1.5), class = b, coef = "Social_RepHigh:BotGenderF:BRpreviousCooperate"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepHigh:BotGenderF:BRpreviousDefect"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepHigh:BotGenderM:BRpreviousCooperate"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepHigh:BotGenderM:BRpreviousDefect"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepLow:BotGenderF:BRpreviousCooperate"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepLow:BotGenderF:BRpreviousDefect"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepLow:BotGenderM:BRpreviousCooperate"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepLow:BotGenderM:BRpreviousDefect"),
+  prior(normal(0,.3), class = sd),
+  prior(lkj(1), class=cor)
+) 
+
+## Testing the prior
+#p <- inv_logit(rnorm(10000,0,.8)+ rnorm(10000,0,.8)+ rnorm(10000,0,.8)+ rnorm(10000,0,.8) +rnorm(10000,0,.3))
+#dens(p, adj=0.1 )
+#dens(inv_logit(p)) #transforms the data from log-odds to probability
+
+# Testing the prior in the model
+m5.1_prior <- brm(
+  virk_f5.1,
+  d,
+  family = bernoulli(),
+  prior = prior_f5.1,
+  sample_prior = "only",
+  chains = 2,cores = 1
+)
+
+## Standard pp_check
+pp_check(m5.1_prior, nsamples = 100)
+
+## Better pp_check
+y_pred <- posterior_linpred(m5.1_prior) #gives a linear representation, somehow
+dens(inv_logit(y_pred)) #densityplot that has been inverse logit-transformed
+
+# Fitting the model
+m5.1 <- brm(
+  virk_f5.1,
+  d,
+  family = bernoulli(),
+  prior = prior_f5.1,
+  sample_prior = T,
+  chains = 2
+)
+
+### model quality check
+summary(m5.1)
+# - trace plots and trace rank plots
+#color_scheme_set("viridis")
+#mcmc_trace(m5) + theme_classic()
+#mcmc_rank_overlay(m5) + theme_classic()
+## Better pp_check
+y_pred <- posterior_linpred(m5.1)
+dens(inv_logit(y_pred))
+## Posterior update check
+#plot(hypothesis(m5.1,"Social_RepHigh:BotGenderF:GenderKvinde > 0"))
+
+```
+
+
+
 ##### Model comparison
 ```{r}
 # add loo to all models
-m0<- add_criterion(m0, criterion = c("bayes_R2", "loo", reloo = T))
-m1 <- add_criterion(m1, criterion = c("bayes_R2", "loo"))
-m2 <- add_criterion(m2, criterion = c("bayes_R2", "loo"))
-m3 <- add_criterion(m3, criterion = c("bayes_R2", "loo"))
-m4 <- add_criterion(m4, criterion = c("bayes_R2", "loo"))
-m5 <- add_criterion(m5, criterion = c("bayes_R2", criterion ="loo", reloo = T))
+m0 <- add_criterion(m0, criterion = "loo", reloo = T)
+m1 <- add_criterion(m1, criterion = "loo")
+m2 <- add_criterion(m2, criterion = "loo")
+m3 <- add_criterion(m3, criterion = "loo")
+m4 <- add_criterion(m4, criterion = "loo")
+m5 <- add_criterion(m5, criterion = "loo", reloo = T)
+m5.1 <- add_criterion(m5.1, criterion = "loo")
 
 #compare models
-loo_compare(m0, m1, m2, m3, m4, m5)
-loo_model_weights(m0, m1, m2, 
+loo_compare(m1, m2, m3, m4, m5, m5.1)
+loo_model_weights(m1, m2, m3, m4, m5, m5.1)
+                  
+```                  
