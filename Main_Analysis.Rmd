@@ -31,7 +31,7 @@ pacman::p_load(
 
 ```{r pressure, echo=FALSE}
 #load data
-fileList <- list.files(path="~/CogSci/4. semester/Social and Cultural Dynamics/Exam/Data/Exam experiment SocCult Anna og Sofie DONE/Data_Virksomhedsprojekt/",pattern='*.csv',full.names = TRUE)
+fileList <- list.files(path="~/Exam experiment SocCult Anna og Sofie DONE/Data_Virksomhedsprojekt/",pattern='*.csv',full.names = TRUE)
 dr=NULL
 for (f in fileList){
   t <- read_csv(f)
@@ -82,6 +82,36 @@ d <- rbind(dA, dB, dC, dD, dE, dF, dG, dH)
 
 #remove NAs
 d <- na.omit(d) 
+```
+
+##### Information about participants
+
+```{r}
+# How many participants?
+unique(d$ID)
+length(unique(d$ID))
+
+#mean age og sd
+mean(d$Age)
+sd(d$Age)
+
+#number of women
+women <- d %>% subset(Gender == "Kvinde") %>% group_by(ID)
+
+unique(women$ID)
+length(unique(women$ID))
+
+#number of men
+men <- d %>% subset(Gender == "Mand") %>% group_by(ID)
+
+unique(men$ID)
+length(unique(men$ID))
+
+#number of others
+other <- d %>% subset(Gender == "Andet") %>% group_by(ID)
+
+unique(other$ID)
+length(unique(other$ID))
 ```
 
 ##### Initial checks/plots
@@ -169,10 +199,10 @@ virk_f4 <- bf(PR ~ 0 + Social_Rep:BotGender:Gender + (0 + Social_Rep:BotGender:G
 virk_f5 <- bf(PR ~ 0 + Social_Rep:BotGender:Prog_Beh + Social_Rep:BotGender:Prog_Beh:mo(Trial) + (0 + Social_Rep:BotGender:Prog_Beh + Social_Rep:BotGender:Prog_Beh:mo(Trial) | ID))
 # virk_f5 <- bf(PR ~ 0 + Social_Rep:BotGender:Prog_Beh + (0 + Social_Rep:BotGender:Prog_Beh | ID))
 virk_f5.1 <- bf(PR ~ 0 + Social_Rep:BotGender:BRprevious + (0 + Social_Rep:BotGender:BRprevious | ID))
-
+virk_f5.2 <- bf(PR ~ 0 + Social_Rep:BotGender:Prog_Beh + (0 + Social_Rep:BotGender:Prog_Beh | ID))
 
 ### Effects of Trial of different genders
-virk_f6 <- bf(PR ~ 0 + Social_Rep:BotGender:Prog_Beh:mo(Trial) + Social_Rep:BotGender:Prog_Beh:mo(Trial):Gender + (0 + Social_Rep:BotGender:Prog_Beh + Social_Rep:BotGender:Prog_Beh:mo(Trial):Gender | ID))
+virk_f6 <- bf(PR ~ 0 + Social_Rep:BotGender:Prog_Beh:Gender + Social_Rep:BotGender:Prog_Beh:Gender:mo(Trial) + (0 + Social_Rep:BotGender:Prog_Beh:Gender + Social_Rep:BotGender:Prog_Beh:Gender:mo(Trial) | ID))
 
 
 ```
@@ -200,7 +230,8 @@ m0_prior <- brm(
   d,
   family = bernoulli(),
   prior = prior_f0,
-  sample_prior = "only"
+  sample_prior = "only",
+  chains = 2, cores = 4
 )
 
 ## Standard pp_check
@@ -216,7 +247,8 @@ m0 <- brm(
   d,
   family = bernoulli(),
   prior = prior_f0,
-  sample_prior = T
+  sample_prior = T,
+  chains = 2, cores = 4
 )
 
 ### model quality check
@@ -255,7 +287,8 @@ m1_prior <- brm(
   d,
   family = bernoulli(),
   prior = prior_f1,
-  sample_prior = "only"
+  sample_prior = "only",
+  chains = 2, cores = 4
 )
 
 ## Standard pp_check
@@ -271,7 +304,8 @@ m1 <- brm(
   d,
   family = bernoulli(),
   prior = prior_f1,
-  sample_prior = T
+  sample_prior = T,
+  chains = 2, cores = 4
 )
 
 ### model quality check
@@ -309,7 +343,8 @@ m2_prior <- brm(
   d,
   family = bernoulli(),
   prior = prior_f2,
-  sample_prior = "only"
+  sample_prior = "only",
+  chains = 2, cores = 4
 )
 
 ## Standard pp_check
@@ -325,7 +360,8 @@ m2 <- brm(
   d,
   family = bernoulli(),
   prior = prior_f2,
-  sample_prior = T
+  sample_prior = T,
+  chains = 2, cores = 4
 )
 
 ### model quality check
@@ -365,7 +401,8 @@ m3_prior <- brm(
   d,
   family = bernoulli(),
   prior = prior_f3,
-  sample_prior = "only"
+  sample_prior = "only",
+  chains = 2, cores = 4
 )
 
 ## Standard pp_check
@@ -381,7 +418,8 @@ m3 <- brm(
   d,
   family = bernoulli(),
   prior = prior_f3,
-  sample_prior = T
+  sample_prior = T,
+  chains = 2, cores = 4
 )
 
 ### model quality check
@@ -425,7 +463,8 @@ m4_prior <- brm(
   d,
   family = bernoulli(),
   prior = prior_f4,
-  sample_prior = "only"
+  sample_prior = "only",
+  chains = 2, cores = 4
 )
 
 ## Standard pp_check
@@ -441,7 +480,8 @@ m4 <- brm(
   d,
   family = bernoulli(),
   prior = prior_f4,
-  sample_prior = T
+  sample_prior = T,
+  chains = 2, cores =4
 )
 
 ### model quality check
@@ -461,9 +501,6 @@ plot(hypothesis(m4,"Social_RepHigh:BotGenderF:GenderKvinde > 0"))
 ##### Model 5
 ```{r}
 get_prior(virk_f5, d, family = bernoulli())
-
-K <- 4
-vector <- rep(1, K-1)
 
 prior_f5 <- c(
   prior(normal(0,1.5), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehBad"),
@@ -506,7 +543,7 @@ m5_prior <- brm(
   family = bernoulli(),
   prior = prior_f5,
   sample_prior = "only",
-  chains = 2,cores = 1
+  chains = 2,cores = 4
 )
 
 ## Standard pp_check
@@ -523,7 +560,7 @@ m5 <- brm(
   family = bernoulli(),
   prior = prior_f5,
   sample_prior = T,
-  chains = 2
+  chains = 2, cores = 4 
 )
 
 ### model quality check
@@ -536,8 +573,254 @@ summary(m5)
 y_pred <- posterior_linpred(m5)
 dens(inv_logit(y_pred))
 ## Posterior update check
-plot(hypothesis(m5,"Social_RepHigh:BotGenderF:GenderKvinde > 0"))
+#plot(hypothesis(m5,"Social_RepHigh:BotGenderF:GenderKvinde > 0"))
 ```
+
+##### Model 5 with different priors
+
+```{r}
+prior_f5.01 <- c(
+  prior(normal(0,1), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehBad"),
+  prior(normal(0,1), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehBad:moTrial"),
+  prior(normal(0,1), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehGood"),
+  prior(normal(0,1), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehGood:moTrial"),
+  prior(normal(0,1), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehBad"),
+  prior(normal(0,1), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehBad:moTrial"),
+  prior(normal(0,1), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehGood"),
+  prior(normal(0,1), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehGood:moTrial"),
+  prior(normal(0,1), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehBad"),
+  prior(normal(0,1), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehBad:moTrial"),
+  prior(normal(0,1), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehGood"),
+  prior(normal(0,1), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehGood:moTrial"),
+  prior(normal(0,1), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehBad"),
+  prior(normal(0,1), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehBad:moTrial"),
+  prior(normal(0,1), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehGood"),
+  prior(normal(0,1), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehGood:moTrial"),
+  prior(normal(0,.3), class = sd),
+  prior(lkj(1), class=cor)
+  # prior(dirichlet(), class = simo, coef = "Social_RepHigh:BotGenderF:Prog_BehBad:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepHigh:BotGenderF:Prog_BehGood:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepHigh:BotGenderM:Prog_BehBad:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepHigh:BotGenderM:Prog_BehGood:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepLow:BotGenderF:Prog_BehBad:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepLow:BotGenderF:Prog_BehGood:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepLow:BotGenderM:Prog_BehBad:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepLow:BotGenderM:Prog_BehGood:moTrial1")
+) 
+
+## Testing the prior
+#p <- inv_logit(rnorm(10000,0,.8)+ rnorm(10000,0,.8)+ rnorm(10000,0,.8)+ rnorm(10000,0,.8) +rnorm(10000,0,.3))
+#dens(p, adj=0.1 )
+#dens(inv_logit(p)) #transforms the data from log-odds to probability
+
+# Testing the prior in the model
+m5.01_prior <- brm(
+  virk_f5,
+  d,
+  family = bernoulli(),
+  prior = prior_f5.01,
+  sample_prior = "only",
+  chains = 2,cores = 4
+)
+
+## Standard pp_check
+pp_check(m5.01_prior, nsamples = 100)
+
+## Better pp_check
+y_pred <- posterior_linpred(m5.01_prior) #gives a linear representation, somehow
+dens(inv_logit(y_pred)) #densityplot that has been inverse logit-transformed
+
+# Fitting the model
+m5.01 <- brm(
+  virk_f5,
+  d,
+  family = bernoulli(),
+  prior = prior_f5.01,
+  sample_prior = T,
+  chains = 2, cores = 4 
+)
+
+### model quality check
+summary(m5.01)
+# - trace plots and trace rank plots
+#color_scheme_set("viridis")
+#mcmc_trace(m5) + theme_classic()
+#mcmc_rank_overlay(m5) + theme_classic()
+## Better pp_check
+y_pred <- posterior_linpred(m5.01)
+dens(inv_logit(y_pred))
+
+
+
+
+
+
+#####################################
+
+prior_f5.02 <- c(
+  prior(normal(0,.5), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehBad"),
+  prior(normal(0,.5), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehBad:moTrial"),
+  prior(normal(0,.5), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehGood"),
+  prior(normal(0,.5), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehGood:moTrial"),
+  prior(normal(0,.5), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehBad"),
+  prior(normal(0,.5), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehBad:moTrial"),
+  prior(normal(0,.5), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehGood"),
+  prior(normal(0,.5), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehGood:moTrial"),
+  prior(normal(0,.5), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehBad"),
+  prior(normal(0,.5), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehBad:moTrial"),
+  prior(normal(0,.5), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehGood"),
+  prior(normal(0,.5), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehGood:moTrial"),
+  prior(normal(0,.5), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehBad"),
+  prior(normal(0,.5), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehBad:moTrial"),
+  prior(normal(0,.5), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehGood"),
+  prior(normal(0,.5), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehGood:moTrial"),
+  prior(normal(0,.3), class = sd),
+  prior(lkj(1), class=cor)
+  # prior(dirichlet(), class = simo, coef = "Social_RepHigh:BotGenderF:Prog_BehBad:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepHigh:BotGenderF:Prog_BehGood:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepHigh:BotGenderM:Prog_BehBad:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepHigh:BotGenderM:Prog_BehGood:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepLow:BotGenderF:Prog_BehBad:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepLow:BotGenderF:Prog_BehGood:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepLow:BotGenderM:Prog_BehBad:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepLow:BotGenderM:Prog_BehGood:moTrial1")
+) 
+
+## Testing the prior
+#p <- inv_logit(rnorm(10000,0,.8)+ rnorm(10000,0,.8)+ rnorm(10000,0,.8)+ rnorm(10000,0,.8) +rnorm(10000,0,.3))
+#dens(p, adj=0.1 )
+#dens(inv_logit(p)) #transforms the data from log-odds to probability
+
+# Testing the prior in the model
+m5.02_prior <- brm(
+  virk_f5,
+  d,
+  family = bernoulli(),
+  prior = prior_f5.02,
+  sample_prior = "only",
+  chains = 2,cores = 4
+)
+
+## Standard pp_check
+pp_check(m5.02_prior, nsamples = 100)
+
+## Better pp_check
+y_pred <- posterior_linpred(m5.02_prior) #gives a linear representation, somehow
+dens(inv_logit(y_pred)) #densityplot that has been inverse logit-transformed
+
+# Fitting the model
+m5.02 <- brm(
+  virk_f5,
+  d,
+  family = bernoulli(),
+  prior = prior_f5.02,
+  sample_prior = T,
+  chains = 2, cores = 4 
+)
+
+### model quality check
+summary(m5.02)
+# - trace plots and trace rank plots
+#color_scheme_set("viridis")
+#mcmc_trace(m5) + theme_classic()
+#mcmc_rank_overlay(m5) + theme_classic()
+## Better pp_check
+y_pred <- posterior_linpred(m5.02)
+dens(inv_logit(y_pred))
+
+
+
+
+###########################################################
+prior_f5.03 <- c(
+  prior(normal(0,.1), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehBad"),
+  prior(normal(0,.1), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehBad:moTrial"),
+  prior(normal(0,.1), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehGood"),
+  prior(normal(0,.1), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehGood:moTrial"),
+  prior(normal(0,.1), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehBad"),
+  prior(normal(0,.1), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehBad:moTrial"),
+  prior(normal(0,.1), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehGood"),
+  prior(normal(0,.1), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehGood:moTrial"),
+  prior(normal(0,.1), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehBad"),
+  prior(normal(0,.1), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehBad:moTrial"),
+  prior(normal(0,.1), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehGood"),
+  prior(normal(0,.1), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehGood:moTrial"),
+  prior(normal(0,.1), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehBad"),
+  prior(normal(0,.1), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehBad:moTrial"),
+  prior(normal(0,.1), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehGood"),
+  prior(normal(0,.1), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehGood:moTrial"),
+  prior(normal(0,.3), class = sd),
+  prior(lkj(1), class=cor)
+  # prior(dirichlet(), class = simo, coef = "Social_RepHigh:BotGenderF:Prog_BehBad:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepHigh:BotGenderF:Prog_BehGood:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepHigh:BotGenderM:Prog_BehBad:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepHigh:BotGenderM:Prog_BehGood:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepLow:BotGenderF:Prog_BehBad:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepLow:BotGenderF:Prog_BehGood:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepLow:BotGenderM:Prog_BehBad:moTrial1"),
+  # prior(dirichlet(), class = simo, coef = "Social_RepLow:BotGenderM:Prog_BehGood:moTrial1")
+) 
+
+## Testing the prior
+#p <- inv_logit(rnorm(10000,0,.8)+ rnorm(10000,0,.8)+ rnorm(10000,0,.8)+ rnorm(10000,0,.8) +rnorm(10000,0,.3))
+#dens(p, adj=0.1 )
+#dens(inv_logit(p)) #transforms the data from log-odds to probability
+
+
+# Testing the prior in the model
+m5.03_prior <- brm(
+  virk_f5,
+  d,
+  family = bernoulli(),
+  prior = prior_f5.03,
+  sample_prior = "only",
+  chains = 2,cores = 4
+)
+
+## Standard pp_check
+#pp_check(m5.03_prior, nsamples = 100)
+
+## Better pp_check
+y_pred <- posterior_linpred(m5.03_prior) #gives a linear representation, somehow
+dens(inv_logit(y_pred)) #densityplot that has been inverse logit-transformed
+
+# Fitting the model
+m5.03 <- brm(
+  virk_f5,
+  d,
+  family = bernoulli(),
+  prior = prior_f5.03,
+  sample_prior = T,
+  chains = 2, cores = 4 
+)
+
+### model quality check
+summary(m5.03)
+# - trace plots and trace rank plots
+#color_scheme_set("viridis")
+#mcmc_trace(m5) + theme_classic()
+#mcmc_rank_overlay(m5) + theme_classic()
+## Better pp_check
+y_pred <- posterior_linpred(m5.03)
+dens(inv_logit(y_pred))
+
+###############################################################################
+
+
+
+m5.01 <- add_criterion(m5.01, criterion = "loo")
+m5.02 <- add_criterion(m5.02, criterion = "loo")
+m5.03 <- add_criterion(m5.03, criterion = "loo")
+
+loo_compare(m1, m2, m3, m4, m5, m5.01, m5.02, m5.03, m5.1, m5.2)
+
+```
+
+```{r}
+```
+
+
+
 
 ##### Model 5.1
 ```{r}
@@ -568,7 +851,7 @@ m5.1_prior <- brm(
   family = bernoulli(),
   prior = prior_f5.1,
   sample_prior = "only",
-  chains = 2,cores = 1
+  chains = 2,cores = 4
 )
 
 ## Standard pp_check
@@ -585,7 +868,7 @@ m5.1 <- brm(
   family = bernoulli(),
   prior = prior_f5.1,
   sample_prior = T,
-  chains = 2
+  chains = 2, cores = 4
 )
 
 ### model quality check
@@ -603,20 +886,146 @@ dens(inv_logit(y_pred))
 ```
 
 
+##### Model 5.2
+```{r}
+get_prior(virk_f5.2, d, family = bernoulli())
+
+prior_f5.2 <- c(
+  prior(normal(0,1.5), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehGood"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepHigh:BotGenderF:Prog_BehBad"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehGood"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepHigh:BotGenderM:Prog_BehBad"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehGood"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepLow:BotGenderF:Prog_BehBad"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehGood"),
+  prior(normal(0,1.5), class = b, coef = "Social_RepLow:BotGenderM:Prog_BehBad"),
+  prior(normal(0,.3), class = sd),
+  prior(lkj(1), class=cor)
+) 
+
+## Testing the prior
+#p <- inv_logit(rnorm(10000,0,.8)+ rnorm(10000,0,.8)+ rnorm(10000,0,.8)+ rnorm(10000,0,.8) +rnorm(10000,0,.3))
+#dens(p, adj=0.1 )
+#dens(inv_logit(p)) #transforms the data from log-odds to probability
+
+# Testing the prior in the model
+m5.2_prior <- brm(
+  virk_f5.2,
+  d,
+  family = bernoulli(),
+  prior = prior_f5.2,
+  sample_prior = "only",
+  chains = 2,cores = 4
+)
+
+## Standard pp_check
+pp_check(m5.2_prior, nsamples = 100)
+
+## Better pp_check
+y_pred <- posterior_linpred(m5.2_prior) #gives a linear representation, somehow
+dens(inv_logit(y_pred)) #densityplot that has been inverse logit-transformed
+
+# Fitting the model
+m5.2 <- brm(
+  virk_f5.2,
+  d,
+  family = bernoulli(),
+  prior = prior_f5.2,
+  sample_prior = T,
+  chains = 2, cores = 4
+)
+
+### model quality check
+summary(m5.2)
+# - trace plots and trace rank plots
+#color_scheme_set("viridis")
+#mcmc_trace(m5) + theme_classic()
+#mcmc_rank_overlay(m5) + theme_classic()
+## Better pp_check
+y_pred <- posterior_linpred(m5.2)
+dens(inv_logit(y_pred))
+## Posterior update check
+#plot(hypothesis(m5.1,"Social_RepHigh:BotGenderF:GenderKvinde > 0"))
+
+```
+
+##### Model 6
+```{r}
+get_prior(virk_f6, d, family = bernoulli())
+
+prior_f6 <- c(
+  prior(normal(0,1.5), class = b),
+  prior(normal(0,.3), class = sd),
+  prior(lkj(1), class=cor)
+) 
+
+## Testing the prior
+#p <- inv_logit(rnorm(10000,0,.8)+ rnorm(10000,0,.8)+ rnorm(10000,0,.8)+ rnorm(10000,0,.8) +rnorm(10000,0,.3))
+#dens(p, adj=0.1 )
+#dens(inv_logit(p)) #transforms the data from log-odds to probability
+
+# Testing the prior in the model
+m6_prior <- brm(
+  virk_f6,
+  d,
+  family = bernoulli(),
+  prior = prior_f6,
+  sample_prior = "only",
+  chains = 2,cores = 4
+)
+
+## Standard pp_check
+pp_check(m6_prior, nsamples = 100)
+
+## Better pp_check
+y_pred <- posterior_linpred(m6_prior) #gives a linear representation, somehow
+dens(inv_logit(y_pred)) #densityplot that has been inverse logit-transformed
+
+# Fitting the model
+m6 <- brm(
+  virk_f6,
+  d,
+  family = bernoulli(),
+  prior = prior_f6,
+  sample_prior = T,
+  chains = 2, cores = 4 
+)
+
+### model quality check
+summary(m6)
+# - trace plots and trace rank plots
+#color_scheme_set("viridis")
+#mcmc_trace(m5) + theme_classic()
+#mcmc_rank_overlay(m5) + theme_classic()
+## Better pp_check
+y_pred <- posterior_linpred(m6)
+dens(inv_logit(y_pred))
+
+```
+
+
+
+
 
 ##### Model comparison
 ```{r}
 # add loo to all models
-m0 <- add_criterion(m0, criterion = "loo", reloo = T)
-m1 <- add_criterion(m1, criterion = "loo")
-m2 <- add_criterion(m2, criterion = "loo")
-m3 <- add_criterion(m3, criterion = "loo")
-m4 <- add_criterion(m4, criterion = "loo")
-m5 <- add_criterion(m5, criterion = "loo", reloo = T)
-m5.1 <- add_criterion(m5.1, criterion = "loo")
+m0 <- add_criterion(m0, c("loo", "waic"))
+m1 <- add_criterion(m1, c("loo", "waic"))
+m2 <- add_criterion(m2, c("loo", "waic"))
+m3 <- add_criterion(m3, c("loo", "waic"))
+m4 <- add_criterion(m4, c("loo", "waic"))
+m5 <- add_criterion(m5, c("loo", "waic"))
+m5.01 <- add_criterion(m5.01, c("loo", "waic"))
+m5.02 <- add_criterion(m5.02, c("loo", "waic"))
+m5.03 <- add_criterion(m5.03, c("loo", "waic"))
+m5.1 <- add_criterion(m5.1, c("loo", "waic"))
+m5.2 <- add_criterion(m5.2, c("loo", "waic"))
+m6 <- add_criterion(m6, c("loo", "waic"))
 
 #compare models
-loo_compare(m1, m2, m3, m4, m5, m5.1)
-loo_model_weights(m1, m2, m3, m4, m5, m5.1)
+compare(m0, m1, m2, m3, m4, m5, m5.01, m5.02, m5.03, m5.1, m5.2, m6)
+loo_compare(m0, m1, m2, m3, m4, m5, m5.01, m5.02, m5.03, m5.1, m5.2, m6)
+
                   
 ```                  
