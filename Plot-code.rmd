@@ -1,0 +1,207 @@
+---
+title: "Main analysis - SoCult"
+author: "Anna Stuckert and Sofie Rødkjær"
+date: "24/4/2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Load packages
+```{r cars}
+pacman::p_load(
+  rethinking,
+  brms,
+  tidyverse,
+  bayesplot,
+  viridis,
+  dplyr, 
+  ggplot2,
+  tibble, 
+  boot,
+  cowplot
+)
+
+```
+
+## Load data
+
+```{r pressure, echo=FALSE}
+#load data
+fileList <- list.files(path="~/CogSci/4. semester/Social and Cultural Dynamics/Exam/Data/Exam experiment SocCult Anna og Sofie DONE/Data_Virksomhedsprojekt/",pattern='*.csv',full.names = TRUE)
+dr=NULL
+for (f in fileList){
+  t <- read_csv(f)
+  if (exists("dr")){ dr = rbind(dr,t) } else { dr = t }
+}
+
+#renaming df
+d <- dr
+# Rename column
+colnames(d)[colnames(d) == "X1"] <- "Trial"
+
+# Recode PR (Participant Response)
+d$PR = as.character(d$PR)
+d$PR[d$PR=="no"] = "0"
+d$PR[d$PR=="yes"] = "1"
+d$PR = as.numeric(d$PR)
+
+# Recode BR (BOT Response)
+#d$BR = as.character(d$BR)
+#d$BR[d$BR=="Defect"] = "0"
+#d$BR[d$BR=="Cooperate"] = "1"
+#d$BR = as.factor(d$BR)
+
+#subset for each bot
+dA <- d %>% subset(BOT == "A") %>% group_by(ID)
+dB <- d %>% subset(BOT == "B") %>% group_by(ID)
+dC <- d %>% subset(BOT == "C") %>% group_by(ID)
+dD <- d %>% subset(BOT == "D") %>% group_by(ID)
+dE <- d %>% subset(BOT == "E") %>% group_by(ID)
+dF <- d %>% subset(BOT == "F") %>% group_by(ID)
+dG <- d %>% subset(BOT == "G") %>% group_by(ID)
+dH <- d %>% subset(BOT == "H") %>% group_by(ID)
+
+#Add column with the bot's last answer
+# data frame for bot A
+dA <- mutate(dA, BRprevious = lag(BR))
+dB <- mutate(dB, BRprevious = lag(BR))
+dC <- mutate(dC, BRprevious = lag(BR))
+dD <- mutate(dD, BRprevious = lag(BR))
+dE <- mutate(dE, BRprevious = lag(BR))
+dF <- mutate(dF, BRprevious = lag(BR))
+dG <- mutate(dG, BRprevious = lag(BR))
+dH <- mutate(dH, BRprevious = lag(BR))
+
+#merge back together
+d <- rbind(dA, dB, dC, dD, dE, dF, dG, dH)
+
+#remove NAs
+d <- na.omit(d) 
+```
+
+##### Initial checks/plots
+
+```{r}
+# Check Bot behaviour - for at se om deres behavior nogenlunde passer med det programmerede behavior
+d_yes = d[d$PR == 1,]
+d_yes$BR = as.character(d_yes$BR)
+d_yes$BR[d_yes$BR=="Defect"] = "0"
+d_yes$BR[d_yes$BR=="Cooperate"] = "1"
+d_yes$BR = as.numeric(d_yes$BR)
+
+# A (Rasmus) = 32 % cooperation
+BOTA=d_yes[d_yes$BOT == "A",]
+sum(BOTA$BR)/length(BOTA$BR)
+
+# B (Mathias) = 62 % cooperation
+BOTB=d_yes[d_yes$BOT == "B",]
+sum(BOTB$BR)/length(BOTB$BR)
+
+# C (Frederik)= 17 % cooperation
+BOTC=d_yes[d_yes$BOT == "C",]
+sum(BOTC$BR)/length(BOTC$BR)
+
+# D (Christian) = 71 % cooperation
+BOTD=d_yes[d_yes$BOT == "D",]
+sum(BOTD$BR)/length(BOTD$BR)
+
+# E (Sarah) = 31 % cooperation
+BOTD=d_yes[d_yes$BOT == "E",]
+sum(BOTD$BR)/length(BOTD$BR)
+
+# F (Emma) = 63 % cooperation
+BOTD=d_yes[d_yes$BOT == "F",]
+sum(BOTD$BR)/length(BOTD$BR)
+
+# G (Laura) = 28 % cooperation
+BOTD=d_yes[d_yes$BOT == "G",]
+sum(BOTD$BR)/length(BOTD$BR)
+
+# H (Julie) = 70 % cooperation
+BOTD=d_yes[d_yes$BOT == "H",]
+sum(BOTD$BR)/length(BOTD$BR)
+
+
+# Duplicate Bot column 
+d$Partner = d$BOT
+
+# How many participants?
+unique(d$ID)
+length(unique(d$ID))
+
+# Overall cooperation rate for each partner (Bot)
+ggplot(d, aes(Partner, PR, fill = Partner)) + geom_bar(stat= "summary") + geom_errorbar(stat="summary", fun.data=mean_se, width=0.3) + theme(legend.position= "none") + ggtitle("Player cooperation for each partner") + ylab("Player cooperation")
+
+# Player response as a function of time
+ggplot(d, aes(x = Trial, y= PR, colour = Partner)) + geom_smooth(alpha = 0.2) + ggtitle("Player cooperation level as a function of time") + xlab("Time aka Trial") + ylab("Player cooperation")
+
+```
+
+Plots
+```{r}
+#H1: PR ~ reputation
+
+ggplot(d, aes(Social_Rep, PR)) + geom_bar(stat= "summary") + geom_errorbar(stat="summary", fun.data=mean_se, width=0.3) + theme(legend.position= "none") + ggtitle("Player cooperation for reputations") + ylab("Player cooperation")
+```
+```{r}
+#H2: PR ~ bot_gender
+
+ggplot(d, aes(BotGender, PR)) + geom_bar(stat= "summary") + geom_errorbar(stat="summary", fun.data=mean_se, width=0.3) + theme(legend.position= "none") + ggtitle("Player cooperation for reputations") + ylab("Player cooperation")
+```
+
+```{r}
+#H3: PR ~ reputation*bot_gender
+
+ggplot(d, aes(Social_Rep, PR, fill=BotGender)) + geom_bar(stat= "summary") + geom_errorbar(stat="summary", fun.data=mean_se, width=0.3) + theme(legend.position= "none") + ggtitle("Player cooperation for reputations") + ylab("Player cooperation")+ facet_wrap(~BotGender)
+
+```
+
+```{r}
+#H4: PR ~ participant_gender*bot_gender
+
+ggplot(d, aes(Gender, PR, fill=BotGender)) + geom_bar(stat= "summary") + geom_errorbar(stat="summary", fun.data=mean_se, width=0.3) + theme(legend.position= "none") + ggtitle("Player cooperation for reputations") + ylab("Player cooperation")+ facet_wrap(~BotGender)
+
+```
+
+
+```{r}
+
+#interaction between Social_Rep and BotGender
+ggplot(d, aes(Social_Rep, PR, color = BotGender, group = BotGender)) +
+  geom_point(stat = "summary", fun.y = mean) +
+  geom_errorbar(stat = "summary", fun.data = mean_se, width = 0.2, alpha = 0.4) +             
+  geom_line(stat = "summary") 
+
+#interaction between Social_Rep and BotGender for different genders
+ggplot(d, aes(Social_Rep, PR, color = BotGender, group = BotGender)) +
+  geom_point(stat = "summary", fun.y = mean) +
+  geom_errorbar(stat = "summary", fun.data = mean_se, width = 0.2, alpha = 0.4) +             
+  geom_line(stat = "summary") +
+  facet_wrap(~ Gender)
+
+# interaction of direct and indirect reciprocity between the 2 BotGenders
+ggplot(d, aes(Social_Rep, PR, color = Prog_Beh, group = Prog_Beh)) +
+  geom_point(stat = "summary", fun.y = mean) +
+  geom_errorbar(stat = "summary", fun.data = mean_se, width = 0.2, alpha = 0.4) +             
+  geom_line(stat = "summary") +
+  facet_wrap(~ BotGender)
+
+#H5.2: PR ~ reputation*bot_gender*Prog_Beh
+# Overall cooperation rate for each partner (Bot)
+ggplot(d, aes(Partner, PR, fill = Partner)) + geom_bar(stat= "summary") + geom_errorbar(stat="summary", fun.data=mean_se, width=0.3) + theme(legend.position= "none") + ggtitle("Player cooperation for each partner") + ylab("Player cooperation")
+
+#H5.1: alternativt plot (nok mere repræsentativt for hypotesen/variablerne:
+ggplot(d, aes(Social_Rep, PR, fill = Prog_Beh)) + geom_bar(stat= "summary", position = "dodge") + geom_errorbar(stat="summary", fun.data=mean_se, width=0.3) + theme(legend.position= "none") + ggtitle("Player cooperation for each reputation, color by prev response, facet wrap by bot gender") + ylab("Player cooperation") + facet_wrap(~BotGender)
+
+#H5: PR ~ reputation*bot_gender*Prog_Beh*Trial
+# Player response as a function of time
+ggplot(d, aes(x = Trial, y= PR, colour = Partner)) + geom_smooth(alpha = 0.2) + ggtitle("Player cooperation level as a function of time") + xlab("Time aka Trial") + ylab("Player cooperation")
+
+#H5.1: PR ~ reputation*bot_gender*Prev_response
+ggplot(d, aes(Social_Rep, PR, fill = BRprevious)) + geom_bar(stat= "summary", position = "dodge") + geom_errorbar(stat="summary", fun.data=mean_se, width=0.3) + theme(legend.position= "none") + ggtitle("Player cooperation for each reputation, color by prev response, facet wrap by bot gender") + ylab("Player cooperation") + facet_wrap(~BotGender)
+
+```
